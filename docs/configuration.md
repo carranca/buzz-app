@@ -31,6 +31,7 @@ token or other secret in one**. Open-source builds leave them all unset.
 | `BUZZ_BUILDERLAB_APPS_DOMAIN` | The Apps cookie domain for in-app SSO, for Builderlab deployments other than the public one. Empty disables SSO. |
 | `BUZZ_BUILDERLAB_APPS_CONTROL_PLANE` | The Apps control plane origin, for deployments the built-in table doesn't list. |
 | `BUZZ_BUILD_MANAGED_PLUGINS_URL` | An `https` URL of a version 1 [managed plugin policy](managed-plugins.md#packaged-policy), used when no `managed-plugins.json` exists. |
+| `BUZZ_BUILD_RELAY_POLICY` | A [relay trust policy](#relay-trust-policy): the pinned community and the additional relays allowed. Process environment only. |
 | `BUZZ_BUILD_REPOSITORY_ACCESS` | Default [repository access rules](repository-access.md#default-rules). |
 | `BUZZ_DATABRICKS_HOST` | An `https://` Databricks workspace URL passed to every bundled goose as `DATABRICKS_HOST`. Only the host; model and sign-in stay goose's. |
 | `BUZZ_MOBILE_APP_IOS_URL`, `BUZZ_MOBILE_APP_ANDROID_URL` | Store links shown with QR codes on the mobile Settings card, for people whose Builderlab account holds this device's backed-up key. |
@@ -44,6 +45,65 @@ and [`BUZZ_DEV_FIRST_RUN_ACCOUNT`](#first-run-account-seed-development).
 `BUZZ_BUILD_AGENT_ENV`, `BUZZ_BUILD_BUZZ_AGENT_PROVIDER`,
 `BUZZ_BUILD_AGENT_ACCESS_OWNER_ONLY` and `BUZZ_OWNER_MCP_COMMUNITIES` are no
 longer read. Remove them.
+
+## Relay trust policy
+
+Packagers can require one community and explicitly permit additional relays:
+
+```sh
+export BUZZ_BUILD_RELAY_POLICY='{"pinned":"wss://relay.example.com","allowlist":["https://other.example.com:8443"]}'
+bin/pnpm tauri build
+```
+
+This input is **process environment only**. Both Vite and Cargo validate it at
+build time and embed it into their artifacts. Supply the same input to both
+stages; `tauri build` passes its environment to both. Vite development reads it
+when the server starts; native development needs a rebuild too. `.env` files,
+`VITE_` variables, saved preferences and the launched app's environment do not
+override it. Rebuild both artifacts to change a packaged policy. No relay policy
+or relay addresses are supplied by OSS defaults.
+
+- Absent: existing unrestricted community behavior.
+- Present: a JSON object with exactly `pinned` (a URL string) and `allowlist`
+  (an array of URL strings). The pin is always permitted. An empty array permits
+  only the pin; additional entries permit optional communities, without joining
+  them automatically. Equivalent duplicate URLs have the same effect as one.
+- Empty/whitespace input, invalid JSON, `null`, missing/unknown fields, wrong
+  types, empty URLs and invalid URLs fail the build or dev-server startup with
+  a `BUZZ_BUILD_RELAY_POLICY` error. Invalid values never enable unrestricted
+  operation. Errors do not echo the configured values.
+
+URLs use the existing secure community-origin rules: `wss://` and `https://`,
+surrounding whitespace permitted, without credentials, non-root paths, query or
+fragment. A single root slash, host case, final DNS dot and default port 443
+normalize away. IDNs use their ASCII form and IPv6 literals normalize through
+the URL parser. Matching uses the complete canonical origin, including any
+non-default port. Subdomains, suffixes and different ports are separate relays;
+there are no wildcards. Aliases resolve to an origin before policy checking.
+
+After identity restoration the pin is present in the saved community inventory.
+A fresh identity starts there. An allowed saved selection or Personal space
+remains selected; a saved blocked selection falls back to the pin. Disallowed
+saved memberships are excluded before metadata reads, session acquisition and
+background agent startup, and omitted on the next community-record write.
+Their remote memberships and relay-scoped device data are retained. A failed
+preference write does not disable policy enforcement. Account sync, legacy
+import, invites and deep links pass through the same destination gate.
+
+Shared community mutation and transport boundaries enforce the policy; the
+development broker independently checks registration and every routed request.
+The native host checks relay discovery, authenticated requests, signing,
+publication and media access, plus pairing community selection and agent
+creation/import/join/access. The app-held CLI uses those checked app transports.
+Advertised admin and pairing service endpoints keep their existing validation
+under an allowed community; they are not additional saved communities. The pin
+cannot be forgotten locally or left through the leave API, broker or native
+signing/publication commands. Community profile and presentation editing and
+switching among allowed communities or Personal space keep their existing behavior.
+
+`BUZZ_DEFAULT_COMMUNITY_URL`, development seeds and aliases do not grant policy
+exceptions. The default-community input remains a one-time selection seed;
+the policy is a persistent build constraint.
 
 ## Agent gateway
 
