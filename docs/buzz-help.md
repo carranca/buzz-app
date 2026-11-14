@@ -97,6 +97,9 @@ if that desktop app is up and running.
   shows what it did.
 - **Composer.** **#** links a channel. On desktop, **!** gives your agents a
   folder and **/** a skill. Attach files by pasting or dragging them in.
+  Clicking anywhere in a conversation that isn't a control, field, or text you
+  select, including a message row and the space around the composer, puts you
+  back in that conversation's composer so you can keep typing.
 - **Chats** are **Ongoing** or **Temporary**, which archive after a while
   without messages. The model picker beside Send changes the model for that
   chat. Sharing a chat with a channel shares its whole history.
