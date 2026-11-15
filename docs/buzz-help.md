@@ -160,6 +160,10 @@ them. Don't assume an
 optional plugin is on. Agents can ask to install or enable one, which you
 approve or decline.
 
+To share a plugin installed from Git, choose **Copy install link** in its
+menu and paste the link in a message. Agents can make the same link for a
+GitHub repository. Nothing installs until the person opening it confirms.
+
 A plugin runs with the same reach as Buzz itself, with no sandbox. Install
 one only if you trust its author with your account and your computer.
 
