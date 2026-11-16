@@ -29,6 +29,7 @@ import {
 import type { ComposerFormat, ComposerInputElement } from "./composer-dom";
 import { composerDOMFixture } from "./composer-testing";
 import { composerMarkdown } from "./composer-markdown";
+import { EMOTICONS } from "./composer-emoticons";
 import {
   followupDraft,
   mentionDraft,
@@ -1847,18 +1848,14 @@ it("types an emoticon's emoji on the space after it, with one undo restoring the
   expect(h.input).toHaveValue("nice 😄 ");
 });
 
-it.each([
-  ["<3", "❤️"],
-  [";)", "😉"],
-  [":-)", "🙂"],
-  [">:(", "😠"],
-  ["-_-", "😑"],
-  [":\\", "😕"],
-])("converts %j as its own word", async (face, emoji) => {
-  const h = mount(`a\n${face}`);
-  await h.user.keyboard(" ");
-  expect(h.input).toHaveValue(`a\n${emoji} `);
-});
+it.each(Object.entries(EMOTICONS))(
+  "converts the emoticon %j as its own word",
+  async (face, emoji) => {
+    const h = mount(`a\n${face}`);
+    await h.user.keyboard(" ");
+    expect(h.input).toHaveValue(`a\n${emoji} `);
+  },
+);
 
 it("converts an emoticon after a closed code span on its line", async () => {
   const h = mount("run `x` :D");
@@ -1868,6 +1865,11 @@ it("converts an emoticon after a closed code span on its line", async () => {
 
 it.each([
   ["inside a word", "http:/", "http:/ "],
+  ["inside a ratio", "3:3", "3:3 "],
+  ["inside a time", "at 12:30", "at 12:30 "],
+  ["starting a word", ":Dog", ":Dog "],
+  ["closing a parenthetical", "(see page 8)", "(see page 8) "],
+  ["ending a label", "Option D:", "Option D: "],
   ["after an unclosed backtick", "`run :D", "`run :D "],
   ["inside authored fenced source", "```\n:D", "```\n:D "],
 ])("keeps an emoticon %s as typed", async (_case, text, typed) => {
@@ -1899,6 +1901,19 @@ it("converts the emoticon ending at the caret on request, in one undo step", () 
   const word = mount("ok:)");
   act(() => expect(word.input.convertEmoticon()).toBe(false));
   expect(word.input).toHaveValue("ok:)");
+  const fence = mount("```\n:)");
+  act(() => expect(fence.input.convertEmoticon()).toBe(false));
+  expect(fence.markdown()).toBe("```\n:)");
+});
+
+it("keeps typing after an Enter conversion as its own undo step", async () => {
+  const h = mount("ok :)");
+  act(() => h.input.convertEmoticon());
+  await h.user.keyboard(" more");
+  act(() => h.input.undo(false));
+  expect(h.input).toHaveValue("ok 🙂");
+  act(() => h.input.undo(false));
+  expect(h.input).toHaveValue("ok :)");
 });
 
 it.each(["1. ", "• "])(

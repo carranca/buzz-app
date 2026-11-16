@@ -3040,8 +3040,11 @@ export function EditableInput({
           if (!editable() || composing.current || editor.composing)
             return false;
           const tr = composerEmoticon(editor.state, "");
-          if (tr) editor.dispatch(closeHistory(tr).scrollIntoView());
-          return !!tr;
+          if (!tr) return false;
+          editor.dispatch(closeHistory(tr).scrollIntoView());
+          // Typing after an unsent Enter is its own step, as after Space.
+          separateHistory = true;
+          return true;
         },
       },
       editLink: { configurable: true, value: editLink },
