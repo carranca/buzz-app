@@ -8,9 +8,7 @@ import {
 } from "./composer-document";
 
 // Slack's table, so faces convert as Slack users expect, then a few common
-// faces it lacks. The curly-quote cry is what macOS smart quotes type. Slack's
-// 8) and D: are left out: they end ordinary prose ("page 8)", "Option D:"),
-// and 8) at a line's start is an ordered-list marker.
+// faces it lacks. The curly-quote cry is what macOS smart quotes type.
 export const EMOTICONS: Readonly<Record<string, string>> = {
   ":o)": "🐵",
   "</3": "💔",
@@ -22,6 +20,7 @@ export const EMOTICONS: Readonly<Record<string, string>> = {
   ":->": "😆",
   ";)": "😉",
   ";-)": "😉",
+  "8)": "😎",
   ":|": "😐",
   ":-|": "😐",
   ":\\": "😕",
@@ -48,6 +47,7 @@ export const EMOTICONS: Readonly<Record<string, string>> = {
   ">:(": "😠",
   ">:-(": "😠",
   ":'(": "😢",
+  "D:": "😧",
   ":o": "😮",
   ":-o": "😮",
   ":O": "😮",

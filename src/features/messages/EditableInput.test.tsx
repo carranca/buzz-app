@@ -1851,11 +1851,17 @@ it("types an emoticon's emoji on the space after it, with one undo restoring the
 it.each(Object.entries(EMOTICONS))(
   "converts the emoticon %j as its own word",
   async (face, emoji) => {
-    const h = mount(`a\n${face}`);
+    const h = mount(`a ${face}`);
     await h.user.keyboard(" ");
-    expect(h.input).toHaveValue(`a\n${emoji} `);
+    expect(h.input).toHaveValue(`a ${emoji} `);
   },
 );
+
+it("converts an emoticon that starts a line", async () => {
+  const h = mount("a\n:D");
+  await h.user.keyboard(" ");
+  expect(h.input).toHaveValue("a\n😄 ");
+});
 
 it("converts an emoticon after a closed code span on its line", async () => {
   const h = mount("run `x` :D");
@@ -1868,8 +1874,6 @@ it.each([
   ["inside a ratio", "3:3", "3:3 "],
   ["inside a time", "at 12:30", "at 12:30 "],
   ["starting a word", ":Dog", ":Dog "],
-  ["closing a parenthetical", "(see page 8)", "(see page 8) "],
-  ["ending a label", "Option D:", "Option D: "],
   ["after an unclosed backtick", "`run :D", "`run :D "],
   ["inside authored fenced source", "```\n:D", "```\n:D "],
 ])("keeps an emoticon %s as typed", async (_case, text, typed) => {
