@@ -98,6 +98,8 @@ if that desktop app is up and running.
   such as `https://<community>/channel/<channel>/<message>`, which opens Buzz
   from a browser. In Buzz, a link to the current community opens like any Buzz
   link; a link to another community opens in the browser.
+  The web link needs a relay that serves its page. An agent's `read` tool reads
+  a web link only from its own community.
 - **Composer.** **#** links a channel. On desktop, **!** gives your agents a
   folder and **/** a skill. Attach files by pasting or dragging them in.
 - **Chats** are **Ongoing** or **Temporary**, which archive after a while
