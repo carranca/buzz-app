@@ -1830,6 +1830,77 @@ it.each([
   },
 );
 
+it("types an emoticon's emoji on the space after it, with one undo restoring the face", async () => {
+  const h = mount();
+  await h.user.keyboard("nice :D");
+  expect(h.input).toHaveValue("nice :D");
+  await h.user.keyboard(" ");
+  expect(h.input).toHaveValue("nice 😄 ");
+  expect([h.input.selectionStart, h.input.selectionEnd]).toEqual([8, 8]);
+  act(() => h.input.undo(false));
+  expect(h.input).toHaveValue("nice :D ");
+  act(() => h.input.undo(true));
+  expect(h.input).toHaveValue("nice 😄 ");
+  // The prose typed next is its own step; it never merges into the conversion.
+  await h.user.keyboard("there");
+  act(() => h.input.undo(false));
+  expect(h.input).toHaveValue("nice 😄 ");
+});
+
+it.each([
+  ["<3", "❤️"],
+  [";)", "😉"],
+  [":-)", "🙂"],
+  [">:(", "😠"],
+  ["-_-", "😑"],
+  [":\\", "😕"],
+])("converts %j as its own word", async (face, emoji) => {
+  const h = mount(`a\n${face}`);
+  await h.user.keyboard(" ");
+  expect(h.input).toHaveValue(`a\n${emoji} `);
+});
+
+it("converts an emoticon after a closed code span on its line", async () => {
+  const h = mount("run `x` :D");
+  await h.user.keyboard(" ");
+  expect(h.markdown()).toBe("run `x` 😄 ");
+});
+
+it.each([
+  ["inside a word", "http:/", "http:/ "],
+  ["after an unclosed backtick", "`run :D", "`run :D "],
+  ["inside authored fenced source", "```\n:D", "```\n:D "],
+])("keeps an emoticon %s as typed", async (_case, text, typed) => {
+  const h = mount(text);
+  await h.user.keyboard(" ");
+  expect(h.markdown()).toBe(typed);
+});
+
+it("keeps an emoticon in a code block or code span as typed", async () => {
+  const h = mount();
+  await h.user.keyboard("`:D x`");
+  expect(h.input.querySelector("code")).toHaveTextContent(":D x");
+  act(() => h.input.setSelectionRange(2, 2));
+  await h.user.keyboard(" ");
+  expect(h.markdown()).toBe("`:D  x`");
+  const block = mount();
+  await block.user.keyboard("```:D ");
+  expect(block.input.querySelector("pre")).toHaveTextContent(":D");
+});
+
+it("converts the emoticon ending at the caret on request, in one undo step", () => {
+  const h = mount("ok :)");
+  act(() => expect(h.input.convertEmoticon()).toBe(true));
+  expect(h.input).toHaveValue("ok 🙂");
+  expect([h.input.selectionStart, h.input.selectionEnd]).toEqual([5, 5]);
+  act(() => expect(h.input.convertEmoticon()).toBe(false));
+  act(() => h.input.undo(false));
+  expect(h.input).toHaveValue("ok :)");
+  const word = mount("ok:)");
+  act(() => expect(word.input.convertEmoticon()).toBe(false));
+  expect(word.input).toHaveValue("ok:)");
+});
+
 it.each(["1. ", "• "])(
   "hides the placeholder in an empty %j list and restores it after exit",
   async (prefix) => {

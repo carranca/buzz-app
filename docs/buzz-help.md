@@ -97,6 +97,9 @@ if that desktop app is up and running.
   shows what it did.
 - **Composer.** **#** links a channel. On desktop, **!** gives your agents a
   folder and **/** a skill. Attach files by pasting or dragging them in.
+  An emoticon typed as its own word, such as `:D`, `;)` or `<3`, becomes its
+  emoji when you press Space or Enter. ⌘Z brings back what you typed.
+  Emoticons in code and links stay as typed.
 - **Chats** are **Ongoing** or **Temporary**, which archive after a while
   without messages. The model picker beside Send changes the model for that
   chat. Sharing a chat with a channel shares its whole history.
