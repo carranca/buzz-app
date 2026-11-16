@@ -1863,6 +1863,14 @@ it("converts an emoticon that starts a line", async () => {
   expect(h.input).toHaveValue("a\n😄 ");
 });
 
+it("converts 8) in a list's first item, where it cannot nest a list, as Slack does", async () => {
+  const h = mount();
+  await h.user.keyboard("- 8) ");
+  expect(h.input.querySelectorAll("ul > li")).toHaveLength(1);
+  expect(h.input.querySelector("ol")).toBeNull();
+  expect(h.markdown()).toBe("- 😎 ");
+});
+
 it("converts an emoticon after a closed code span on its line", async () => {
   const h = mount("run `x` :D");
   await h.user.keyboard(" ");
