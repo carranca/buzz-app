@@ -95,6 +95,10 @@ if that desktop app is up and running.
 - **Messages.** Hover or right-click a message to react, **Reply**, copy a link,
   forward it, or start a chat about it. On an agent's reply, **View activity**
   shows what it did.
+- **Message links.** A link to a Buzz message shows that message as a card
+  below it. Clicking the card opens the message. A message shows cards for its
+  first three message links; write a link as `<buzz://message?…>` to leave
+  out its card.
 - **Composer.** **#** links a channel. On desktop, **!** gives your agents a
   folder and **/** a skill. Attach files by pasting or dragging them in.
 - **Chats** are **Ongoing** or **Temporary**, which archive after a while
