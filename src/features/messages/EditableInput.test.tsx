@@ -1857,6 +1857,18 @@ it.each(Object.entries(EMOTICONS))(
   },
 );
 
+it.each([
+  ["(see page 8)", "(see page 8) "],
+  ["(a (b) page 8)", "(a (b) page 8) "],
+  ["(x) 8)", "(x) 😎 "],
+  ["(\nok 8)", "(\nok 😎 "],
+  ["(nice :)", "(nice 🙂 "],
+])("treats a closing paren in %j as prose only for 8)", async (text, typed) => {
+  const h = mount(text);
+  await h.user.keyboard(" ");
+  expect(h.input).toHaveValue(typed);
+});
+
 it("converts an emoticon that starts a line", async () => {
   const h = mount("a\n:D");
   await h.user.keyboard(" ");

@@ -82,6 +82,18 @@ const PROSE = new Set([
   "text",
 ]);
 
+/** Whether `text` leaves a parenthesis open on its last line: one pass, no
+ * regex, so a long paragraph costs only its length. */
+function openParen(text: string): boolean {
+  let depth = 0;
+  for (const char of text) {
+    if (char === "\n") depth = 0;
+    else if (char === "(") depth++;
+    else if (char === ")" && depth) depth--;
+  }
+  return depth > 0;
+}
+
 const children = (node: Nodes): readonly Nodes[] =>
   "children" in node ? node.children : [];
 
@@ -119,6 +131,15 @@ export function composerEmoticon(
   if (!face) return;
   const to = $from.pos - typed.length,
     from = to - face.length;
+  // In "(see page 8)" the ")" closes the parenthesis. Other faces, such as
+  // the :) in "(nice :)", still convert there.
+  if (
+    face === "8)" &&
+    openParen(
+      $from.parent.textBetween(0, from - $from.start(), undefined, "\ufffc"),
+    )
+  )
+    return;
   if (
     (["code", "link", "literal"] as const).some((name) =>
       state.doc.rangeHasMark(from, to, schema.marks[name]),
