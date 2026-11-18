@@ -163,7 +163,8 @@ export function installComposerClickFocus() {
     dismissing = !!document.querySelector(DISMISSIBLE);
   };
   // A key pressed before the frame (Escape closing what the click opened, say,
-  // while rendering stalls) supersedes the click; its own focus work stands.
+  // while rendering stalls) or focus moved by anything after the click
+  // supersedes the click; that focus work stands.
   const key = () => {
     if (frame !== undefined) cancelAnimationFrame(frame);
     frame = undefined;
@@ -210,10 +211,12 @@ export function installComposerClickFocus() {
   };
   window.addEventListener("pointerdown", down, true);
   window.addEventListener("keydown", key, true);
+  window.addEventListener("focusin", key, true);
   window.addEventListener("click", click);
   return () => {
     window.removeEventListener("pointerdown", down, true);
     window.removeEventListener("keydown", key, true);
+    window.removeEventListener("focusin", key, true);
     window.removeEventListener("click", click);
     if (frame !== undefined) cancelAnimationFrame(frame);
   };

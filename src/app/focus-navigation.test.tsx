@@ -342,3 +342,19 @@ it("a click on the message box's frame resumes typing in it", async () => {
   await settle();
   expect(screen.getByRole("textbox", { name: "Main draft" })).toHaveFocus();
 });
+
+it("focus moved after a click but before its frame stands", async () => {
+  render(<Shell />);
+  const channels = screen.getByText("Channels");
+  const scroller = screen
+    .getByText("Main message")
+    .closest<HTMLElement>("[data-message-scroller]");
+  if (!scroller) throw new Error("no scroller");
+  scroller.tabIndex = -1;
+  // Opening a channel from the sidebar, then focusing its history directly.
+  fireEvent.pointerDown(channels, { pointerType: "mouse" });
+  fireEvent.click(channels, { detail: 1 });
+  scroller.focus();
+  await settle();
+  expect(scroller).toHaveFocus();
+});
