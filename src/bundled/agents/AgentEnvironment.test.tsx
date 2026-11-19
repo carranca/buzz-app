@@ -382,3 +382,18 @@ it("offers no restart while the list has unsaved edits", async () => {
   await user.click(restart);
   expect(screen.queryByRole("button", { name: "Restart" })).toBeNull();
 });
+
+it("edits the device list when no agent is named", async () => {
+  const user = userEvent.setup();
+  render(<AgentEnvironment />);
+  await user.type(await screen.findByLabelText("Value of SAVED_KEY"), "new");
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  expect(calls("agent_env_status")[0]?.[1]).toEqual({ agent: undefined });
+  expect(calls("agent_env_set")[0]?.[1]).toEqual({
+    agent: undefined,
+    rows: [{ name: "SAVED_KEY", value: "new" }],
+  });
+  expect(
+    screen.getByText(/Every local agent on this device/),
+  ).toBeInTheDocument();
+});

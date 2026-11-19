@@ -121,6 +121,15 @@ if that desktop app is up and running.
   optionally instructions. A remote harness such as Builderlab needs no setup
   on this computer. Local harnesses need their sign-in or API key in
   **Settings → Agent setup → Harness defaults**.
+- **Settings → Agent setup → Environment variables**, below **Harness
+  defaults**, sets variables every local agent on
+  this device starts with, such as API keys. They're kept in the OS credential
+  store, never synced, and values aren't shown again after saving. Protected
+  and hosted agents don't get them, an agent's own list wins over them, and a
+  harness's own variables win over both, except that a saved
+  `ANTHROPIC_API_KEY` wins over the shared Claude key. The same names are refused as in an
+  agent's own list. A save applies to agent processes started afterward;
+  agents already running keep the old list until **Restart Buzz**.
 - **An agent's page** has its identity and instructions, settings, **Memory**,
   **Activity** (its past sessions) and plugin tabs such as **Attention**.
 - **Settings → Agent details → Environment variables** sets variables one
@@ -135,7 +144,8 @@ if that desktop app is up and running.
   community so its next message starts them with the saved list. It asks
   first, and it's refused while the agent is answering or in a call. A Codex or Pi agent
   with its own list runs in its own process. Removing the agent from its last
-  community on this computer deletes its list.
+  community on this computer deletes its list. Every local agent also gets the
+  device list in **Settings → Agent setup**; its own list wins over it.
 - **Instructions** change how an agent behaves. They don't give it new tools,
   accounts or permissions.
 - **Sessions.** By default an agent starts a fresh conversation for each

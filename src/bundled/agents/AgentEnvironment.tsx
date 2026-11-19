@@ -16,15 +16,16 @@ import { useAgentSaveState } from "../../features/agents/AgentSaveButton";
 type Row = { key: number; name: string; value: string; saved: boolean };
 type Status = { names: string[] };
 
-/** Variables one local agent starts with, held natively in the OS credential
- * store. Values are never read back. */
+/** Variables one local agent starts with, or without `agent` every local
+ * agent on this device, held natively in the OS credential store. Values are
+ * never read back. */
 export function AgentEnvironment({
   agent,
   restartAgent,
 }: {
-  agent: string;
+  agent?: string;
   /** Stops the agent's processes, so its next turn starts with the list. */
-  restartAgent: () => Promise<void>;
+  restartAgent?: () => Promise<void>;
 }) {
   const [rows, setRows] = useState<Row[] | undefined>();
   const [restarting, setRestarting] = useState(false);
@@ -101,7 +102,9 @@ export function AgentEnvironment({
     <div className="mt-section-gap">
       <InlineHeader title="Environment variables" />
       <p className="m-0 mb-2 text-body-sm text-subtle">
-        Variables this agent starts with.
+        {agent
+          ? "This agent starts with these, after the ones every local agent on this device gets, so its own win. A harness’s own settings win over both, except that a saved ANTHROPIC_API_KEY wins over the shared Claude key. Models, providers and endpoints are set in its harness settings, not here."
+          : "Every local agent on this device starts with these, and an agent’s own list wins over them. Protected and hosted agents don’t get them, and a harness’s own settings win, except that a saved ANTHROPIC_API_KEY wins over the shared Claude key. Models, providers and endpoints are set above, not here."}
       </p>
       <SettingsGroup layout="form">
         {rows.map((row) => (
@@ -178,29 +181,31 @@ export function AgentEnvironment({
             {error}
           </p>
         )}
-        <PreferenceRow
-          title="Restart agent"
-          subtitle={
-            dirty
-              ? "Save your changes first."
-              : "Processes already running keep the variables they started with."
-          }
-          trailing={
-            <Button
-              ref={restart}
-              size="sm"
-              // A restart would race a save, or drop unsaved edits.
-              disabled={pending || restarting || dirty}
-              loading={restarting}
-              focusableWhenDisabled
-              onClick={() => setConfirm(true)}
-            >
-              Restart agent
-            </Button>
-          }
-        />
+        {restartAgent && (
+          <PreferenceRow
+            title="Restart agent"
+            subtitle={
+              dirty
+                ? "Save your changes first."
+                : "Processes already running keep the variables they started with."
+            }
+            trailing={
+              <Button
+                ref={restart}
+                size="sm"
+                // A restart would race a save, or drop unsaved edits.
+                disabled={pending || restarting || dirty}
+                loading={restarting}
+                focusableWhenDisabled
+                onClick={() => setConfirm(true)}
+              >
+                Restart agent
+              </Button>
+            }
+          />
+        )}
       </SettingsGroup>
-      {confirm && (
+      {confirm && restartAgent && (
         <AlertDialog
           title="Restart this agent?"
           description="Its processes stop, and its next message starts them with the saved environment variables. Other agents keep running."
