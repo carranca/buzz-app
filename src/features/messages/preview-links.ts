@@ -127,7 +127,20 @@ function findPreviewLinks(
     }
     const children = node.children ?? [];
     const own = hiddenRanges(children);
-    for (const child of children) visit(child, own);
+    children.forEach((child, at) => {
+      if (!quoteSource(child, children[at + 1])) visit(child, own);
+    });
+  };
+  // Quoting puts `From <link>:` above the blockquote; it names the quote's
+  // source, which the quote already shows.
+  const quoteSource = (node: Node, next: Node | undefined) => {
+    if (node.type !== "paragraph" || next?.type !== "blockquote") return false;
+    const [start, end] = span(node);
+    return (
+      start !== undefined &&
+      end !== undefined &&
+      /^From \S+:$/.test(source.slice(start, end))
+    );
   };
   visit(scan.tree as Node, []);
   return Object.freeze(found);

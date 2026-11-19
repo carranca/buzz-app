@@ -105,6 +105,16 @@ describe("previewMessageLinks", () => {
     ).toEqual([b]);
   });
 
+  it("skips a quote's source line but keeps links elsewhere", () => {
+    expect(
+      previewMessageLinks(`Draft\n\nFrom ${a}:\n\n> Hello **world**\n\nreply`),
+    ).toEqual([]);
+    expect(
+      previewMessageLinks(`From ${a}:\n\n> quoted ${b}\n\nFrom ${b}:`),
+    ).toEqual([b]);
+    expect(previewMessageLinks(`From ${a}:\n\nnot a quote`)).toEqual([a]);
+  });
+
   it("finds nothing without a Buzz link", () => {
     expect(previewMessageLinks("https://example.com and text")).toEqual([]);
   });
