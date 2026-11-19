@@ -6,6 +6,14 @@ import type { ThreadSnapshot, ThreadView } from "../relay/threads";
 import type { ChannelMessage } from "../relay/contracts";
 import { CARD_READERS, MessageLinkCards } from "./MessageLinkCards";
 import { FOLD_AFTER } from "./LinkPreviews";
+import { MessageMarkdown } from "./MessageMarkdown";
+import { CustomEmoji } from "../../bundled/emoji/CustomEmoji";
+import { emojiMatches } from "../relay/emoji";
+import type {
+  ConversationExtensions,
+  InlineRenderer,
+} from "../conversation/contracts";
+import type { Contribution } from "../../plugins/contributions";
 
 afterEach(cleanup);
 
@@ -22,17 +30,66 @@ const message = (messageId: string, content?: string): ChannelMessage => ({
   attachments: [],
   reactions: [],
   replyCount: 0,
+  emoji: [{ shortcode: "rickroll", url: "https://example.com/rickroll.png" }],
 });
 
+const cards = (root: ParentNode = document) =>
+  Array.from(root.querySelectorAll<HTMLElement>("[data-message-link-card]"));
+
+const inlineRenderers: readonly Contribution<InlineRenderer>[] = [
+  {
+    id: "emoji",
+    key: "test/emoji",
+    pluginId: "test",
+    revision: "1",
+    title: "Emoji",
+    matches: ({ text, message }) => [
+      ...emojiMatches(text, message.emoji ?? []),
+    ],
+    component: ({ text, content, media }) => {
+      const emoji = content.message.emoji?.find(
+        (entry) => `:${entry.shortcode}:` === text,
+      );
+      return emoji ? <CustomEmoji emoji={emoji} media={media} /> : text;
+    },
+  },
+];
+/** The linking conversation's renderers: custom emoji, as the bundled
+ * plugin draws them from the message's own emoji. */
+const extensions: ConversationExtensions = {
+  tools: { snapshot: () => [], subscribe: () => () => {} },
+  inline: {
+    snapshot: () => inlineRenderers,
+    subscribe: () => () => {},
+  },
+};
+
+/** Renders a linked message as a row does, opening links with `onOpenLink`. */
+const markdown =
+  (onOpenLink: (url: string) => boolean = () => true) =>
+  (row: ChannelMessage) => (
+    <MessageMarkdown
+      row={row}
+      extensions={extensions}
+      media={(url) => url}
+      onOpenLink={onOpenLink}
+    />
+  );
+
 /** A session whose exact reads find each linked message at once. */
-function fakeSession(contents: Readonly<Record<string, string>> = {}) {
+function fakeSession(
+  contents: Readonly<Record<string, string>> = {},
+  reads = { pending: false },
+) {
   const open = new Set<string>();
   const thread = vi.fn(
     (_channelId: string, messageId: string, _options?: unknown) => {
       open.add(messageId);
       const snapshot: ThreadSnapshot = {
-        status: "ready",
-        root: message(messageId, contents[messageId]),
+        status: reads.pending ? "loading" : "ready",
+        root: reads.pending
+          ? undefined
+          : message(messageId, contents[messageId]),
         replies: [],
         error: undefined,
         canLoadMore: false,
@@ -67,7 +124,9 @@ function fakeSession(contents: Readonly<Record<string, string>> = {}) {
 }
 
 it("shows each linked message as a card that opens its link", () => {
-  const { session, thread } = fakeSession();
+  const { session, thread } = fakeSession({
+    [id(1)]: "Ship **it** at [the docs](https://example.com/docs)",
+  });
   const onOpenLink = vi.fn(() => true);
   render(
     <MessageLinkCards
@@ -75,19 +134,83 @@ it("shows each linked message as a card that opens its link", () => {
       session={session}
       scope="community"
       onOpenLink={onOpenLink}
+      renderMessage={markdown(onOpenLink)}
     />,
   );
-  const card = screen.getByRole("link");
+  const [card] = cards();
+  if (!card) throw new Error("no card");
   expect(card.textContent).toContain("Avery");
   expect(card.textContent).toContain("General");
-  expect(card.textContent).toContain(`linked body ${id(1).slice(-2)}`);
   expect(thread).toHaveBeenCalledWith("general", id(1), {
     exact: true,
     priority: "background",
   });
-  const click = fireEvent.click(card);
-  expect(click).toBe(false);
-  expect(onOpenLink).toHaveBeenCalledWith(link(1));
+  // The body renders as its row would: formatting and working links.
+  const bold = screen.getByText("it");
+  expect(bold.tagName).toBe("STRONG");
+  fireEvent.click(screen.getByRole("link", { name: "the docs" }));
+  expect(onOpenLink).toHaveBeenLastCalledWith("https://example.com/docs");
+  expect(onOpenLink).toHaveBeenCalledTimes(1);
+  // The time is the card's link, and its surface opens it too.
+  const time = card.querySelector("time")?.closest("a");
+  expect(time?.getAttribute("href")).toBe(link(1));
+  expect(fireEvent.click(time as HTMLElement)).toBe(false);
+  expect(onOpenLink).toHaveBeenLastCalledWith(link(1));
+  fireEvent.click(bold);
+  expect(onOpenLink).toHaveBeenCalledTimes(3);
+  expect(onOpenLink).toHaveBeenLastCalledWith(link(1));
+});
+
+it("names a linked message's attachment when it has no other text", () => {
+  const { session } = fakeSession({ [id(1)]: "" });
+  render(
+    <MessageLinkCards
+      urls={[link(1)]}
+      session={session}
+      scope="community"
+      onOpenLink={() => true}
+      renderMessage={markdown()}
+    />,
+  );
+  expect(cards()[0]?.textContent).toContain("Empty message");
+});
+
+it("renders a linked message's custom emoji", () => {
+  const { session } = fakeSession({ [id(1)]: "Hovering over :rickroll: now" });
+  render(
+    <MessageLinkCards
+      urls={[link(1)]}
+      session={session}
+      scope="community"
+      onOpenLink={() => true}
+      renderMessage={markdown()}
+    />,
+  );
+  const emoji = cards()[0]?.querySelector("img");
+  expect(emoji?.getAttribute("src")).toBe("https://example.com/rickroll.png");
+  expect(cards()[0]?.textContent).not.toContain(":rickroll:");
+});
+
+it("shows a card's last read message at once when it remounts", () => {
+  const reads = { pending: false };
+  const { session } = fakeSession({ [id(9)]: "Seen **before**" }, reads);
+  const card = (
+    <MessageLinkCards
+      urls={[link(9)]}
+      session={session}
+      scope="community"
+      onOpenLink={() => true}
+      renderMessage={markdown()}
+    />
+  );
+  const first = render(card);
+  expect(cards()[0]?.textContent).toContain("Seen before");
+  first.unmount();
+  // The next read is still on the way, as after a channel switch.
+  reads.pending = true;
+  render(card);
+  expect(cards()[0]?.textContent).toContain("Seen before");
+  expect(screen.queryByText("Loading message…")).toBeNull();
 });
 
 it(`folds cards past ${FOLD_AFTER} behind one button`, () => {
@@ -98,34 +221,42 @@ it(`folds cards past ${FOLD_AFTER} behind one button`, () => {
       session={session}
       scope="community"
       onOpenLink={() => true}
+      renderMessage={markdown()}
     />,
   );
-  expect(screen.getAllByRole("link")).toHaveLength(FOLD_AFTER);
+  expect(cards()).toHaveLength(FOLD_AFTER);
   fireEvent.click(
     screen.getByRole("button", { name: "Show 1 more linked message" }),
   );
-  expect(screen.getAllByRole("link")).toHaveLength(4);
+  expect(cards()).toHaveLength(4);
   fireEvent.click(
     screen.getByRole("button", { name: "Show fewer linked messages" }),
   );
-  expect(screen.getAllByRole("link")).toHaveLength(FOLD_AFTER);
+  expect(cards()).toHaveLength(FOLD_AFTER);
 });
 
-it("keeps a linked message's spoilers hidden", () => {
+it("keeps a linked message's spoilers hidden until revealed", () => {
   const { session } = fakeSession({
     [id(1)]: "The answer is ||forty-two|| and ||more||.",
   });
+  const onOpenLink = vi.fn(() => true);
   render(
     <MessageLinkCards
       urls={[link(1)]}
       session={session}
       scope="community"
-      onOpenLink={() => true}
+      onOpenLink={onOpenLink}
+      renderMessage={markdown(onOpenLink)}
     />,
   );
-  const card = screen.getByRole("link");
-  expect(card.textContent).toContain("The answer is [Spoiler] and [Spoiler].");
-  expect(card.textContent).not.toContain("forty-two");
+  const reveal = screen.getAllByRole("button", { name: "Reveal spoiler" });
+  expect(reveal).toHaveLength(2);
+  expect(
+    screen.getByText("forty-two").closest("[aria-hidden='true']"),
+  ).toBeTruthy();
+  // Revealing one is the spoiler's click, not the card's.
+  fireEvent.click(reveal[0] as HTMLElement);
+  expect(onOpenLink).not.toHaveBeenCalled();
 });
 
 it(`holds at most ${CARD_READERS} readers, and a waiting card reads once one frees`, () => {
@@ -137,20 +268,19 @@ it(`holds at most ${CARD_READERS} readers, and a waiting card reads once one fre
       session={session}
       scope="community"
       onOpenLink={() => true}
+      renderMessage={markdown()}
     />
   ));
   const { rerender } = render(<>{rows}</>);
   expect(open.size).toBe(CARD_READERS);
   expect(open.has(id(CARD_READERS + 1))).toBe(false);
   // The waiting card keeps its place and says it's loading.
-  const waiting = screen.getAllByRole("link").at(-1);
+  const waiting = cards().at(-1);
   expect(waiting?.textContent).toBe("Loading message…");
   rerender(<>{rows.slice(1)}</>);
   expect(open.has(id(1))).toBe(false);
   expect(open.has(id(CARD_READERS + 1))).toBe(true);
-  expect(screen.getAllByRole("link").at(-1)?.textContent).toContain(
-    "linked body",
-  );
+  expect(cards().at(-1)?.textContent).toContain("linked body");
 });
 
 it("shows one card for links naming the same message, and says when a card can't open", () => {
@@ -161,11 +291,11 @@ it("shows one card for links naming the same message, and says when a card can't
       session={session}
       scope="community"
       onOpenLink={() => false}
+      renderMessage={markdown()}
     />,
   );
-  const cards = screen.getAllByRole("link");
-  expect(cards).toHaveLength(1);
-  fireEvent.click(cards[0] as HTMLElement);
+  expect(cards()).toHaveLength(1);
+  fireEvent.click(cards()[0] as HTMLElement);
   expect(
     screen.getByText("This Buzz link couldn’t be opened here."),
   ).toBeTruthy();

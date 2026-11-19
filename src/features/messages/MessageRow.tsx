@@ -728,6 +728,23 @@ function MessageRowContent({
         : [],
     [session, markdownBody, row.agentEnvelope, displayRow.content],
   );
+  // A linked message renders as this row would, with this conversation's
+  // extensions and links that open as the row's own do.
+  const renderLinkedMessage = useCallback(
+    (linked: ChannelMessage) => (
+      <MessageMarkdown
+        directory={directory}
+        session={references}
+        scope={scope}
+        row={linked}
+        extensions={extensions}
+        media={media}
+        onOpenLink={openLink}
+        canOpenLink={canOpenLink}
+      />
+    ),
+    [directory, references, scope, extensions, media, openLink, canOpenLink],
+  );
   const claimed = (attachment: ChannelMessage["attachments"][number]) => {
     try {
       return !!claims?.call(messageRenderer, row, attachment);
@@ -1739,6 +1756,7 @@ function MessageRowContent({
                   session={session}
                   scope={scope}
                   onOpenLink={openLink}
+                  renderMessage={renderLinkedMessage}
                 />
               )}
 

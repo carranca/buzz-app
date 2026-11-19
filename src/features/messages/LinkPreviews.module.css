@@ -16,7 +16,7 @@
   flex-direction: column;
   gap: var(--space-2);
   box-sizing: border-box;
-  width: 28rem;
+  width: 40rem;
   padding: var(--space-3);
   border: 1px solid var(--border-standard);
   border-radius: var(--radius-icon-button);
@@ -38,7 +38,27 @@
     background: var(--surface-hover);
   }
 }
-html[data-keyboard-navigation] .messageCard:focus-visible {
+/* The card's time, its keyboard way in; the surface opens it by pointer. */
+.messageLink {
+  color: inherit;
+  text-decoration: none;
+}
+.messageLink:hover {
+  color: inherit;
+  text-decoration: underline;
+}
+html[data-keyboard-navigation] .messageLink:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+/* The message as its row renders it, cut off past a dozen lines; the card
+ * opens the rest. Focus inside shows it all, so no focused link is hidden. */
+.messageBody {
+  min-width: 0;
+  max-height: calc(var(--text-body--line-height) * 12em);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.messageBody:focus-within {
+  max-height: none;
 }

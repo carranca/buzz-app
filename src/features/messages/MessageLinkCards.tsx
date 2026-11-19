@@ -1,7 +1,20 @@
-import { useLayoutEffect, useState } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { Button } from "../../shared/design-system/ui/Button";
-import { BuzzLinkPreview } from "../conversation/BuzzLinkPreview";
+import {
+  BuzzLinkPreview,
+  LinkedMessage,
+  type InlineMessageCard,
+} from "../conversation/BuzzLinkPreview";
 import { parseBuzzLink } from "../navigation/buzz-links";
+import type { ChannelMessage } from "../relay/contracts";
+import { projectMarkdownAttachments } from "../relay/message-content";
 import type { RelaySession } from "../relay/session";
 import styles from "./LinkPreviews.module.css";
 import { messageViewKey } from "./view-key";
@@ -46,19 +59,35 @@ function readers(session: RelaySession) {
   return owner;
 }
 
-/** Cards below a message for the Buzz messages it links to, as the link's
- * hover card shows them. A card opens its link as clicking the link does.
- * Past `FOLD_AFTER`, the rest fold behind one button, as web previews do. */
+/** Linked messages each session last read, so a card that remounts, as every
+ * row does on a channel switch, shows its message at once while it reads
+ * again. Only the newest `CACHED_MESSAGES` stay. */
+export const CACHED_MESSAGES = 500;
+const seenMessages = new WeakMap<RelaySession, Map<string, ChannelMessage>>();
+
+function messageCache(session: RelaySession) {
+  const cache = seenMessages.get(session) ?? new Map<string, ChannelMessage>();
+  seenMessages.set(session, cache);
+  return cache;
+}
+
+/** Cards below a message for the Buzz messages it links to: the link's
+ * hover card byline over the message as its conversation renders it. A card
+ * opens its link as clicking the link does. Past `FOLD_AFTER`, the rest fold
+ * behind one button, as web previews do. */
 export function MessageLinkCards({
   urls,
   session,
   scope,
   onOpenLink,
+  renderMessage,
 }: {
   urls: readonly string[];
   session: RelaySession;
   scope: string | undefined;
   onOpenLink(url: string): boolean;
+  /** The linked message's body, formatted as a message row formats it. */
+  renderMessage(message: ChannelMessage): ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   // Links spelled differently can name one message; it gets one card.
@@ -81,6 +110,7 @@ export function MessageLinkCards({
           key={messageViewKey(session, scope, card.url)}
           session={session}
           onOpenLink={onOpenLink}
+          renderMessage={renderMessage}
           {...card}
         />
       ))}
@@ -100,18 +130,39 @@ export function MessageLinkCards({
   );
 }
 
+/** A click on the card's own surface opens it; one on a link, button or
+ * other control inside the body, or one that ends a text selection, does
+ * not. */
+function opensCard(event: MouseEvent<HTMLElement>) {
+  const target = event.target as Element;
+  if (
+    target.closest(
+      "a, button, input, select, textarea, summary, [role='button'], [role='link'], [tabindex]",
+    )
+  )
+    return false;
+  const selection = event.currentTarget.ownerDocument.getSelection();
+  return !(
+    selection &&
+    !selection.isCollapsed &&
+    event.currentTarget.contains(selection.anchorNode)
+  );
+}
+
 function MessageLinkCard({
   url,
   channelId,
   messageId,
   session,
   onOpenLink,
+  renderMessage,
 }: {
   url: string;
   channelId: string;
   messageId: string;
   session: RelaySession;
   onOpenLink(url: string): boolean;
+  renderMessage(message: ChannelMessage): ReactNode;
 }) {
   const [reading, setReading] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
@@ -123,18 +174,75 @@ function MessageLinkCard({
       setReading(false);
     };
   }, [session]);
-  const openCard = () => setUnavailable(!onOpenLink(url));
+  const openCard = useCallback(
+    () => setUnavailable(!onOpenLink(url)),
+    [onOpenLink, url],
+  );
+  const key = `${channelId}:${messageId}`;
+  const [cached] = useState(() => messageCache(session).get(key));
+  const remember = useCallback(
+    (message: ChannelMessage | undefined) => {
+      const cache = messageCache(session);
+      cache.delete(key);
+      if (!message) return;
+      cache.set(key, message);
+      for (const oldest of cache.keys()) {
+        if (cache.size <= CACHED_MESSAGES) break;
+        cache.delete(oldest);
+      }
+    },
+    [session, key],
+  );
+  const inline = useMemo<InlineMessageCard>(
+    () => ({
+      // Attachments aren't shown, so their links leave the text, as a
+      // forward's do; a message with no other text names its attachment.
+      body: (message) => {
+        const content = projectMarkdownAttachments(
+          message.content,
+          new Set(message.attachments.map((item) => item.url)),
+        ).content;
+        if (!content.trim()) return null;
+        return (
+          <div className={styles.messageBody}>
+            {renderMessage({ ...message, content, attachmentSeams: [] })}
+          </div>
+        );
+      },
+      cached,
+      remember,
+      link: (children) => (
+        <a
+          className={styles.messageLink}
+          href={url}
+          onClick={(event) => {
+            event.preventDefault();
+            openCard();
+          }}
+          onAuxClick={(event) => {
+            if (event.button !== 1) return;
+            event.preventDefault();
+            openCard();
+          }}
+        >
+          {children}
+        </a>
+      ),
+    }),
+    [url, openCard, renderMessage, cached, remember],
+  );
   return (
     <>
-      <a
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: The card's time link opens it from the keyboard; the surface click is a mouse shortcut. */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: As above, the surface is a pointer target for the card's own link. */}
+      <div
         className={styles.messageCard}
-        href={url}
+        data-message-link-card=""
         onClick={(event) => {
-          event.preventDefault();
-          openCard();
+          if (opensCard(event)) openCard();
         }}
         onAuxClick={(event) => {
-          if (event.button !== 1) return;
+          if (event.button !== 1 || !opensCard(event)) return;
           event.preventDefault();
           openCard();
         }}
@@ -144,13 +252,15 @@ function MessageLinkCard({
             session={session}
             channelId={channelId}
             messageId={messageId}
-            inline
+            inline={inline}
           />
+        ) : cached ? (
+          <LinkedMessage message={cached} session={session} inline={inline} />
         ) : (
           // Waiting for a free reader, as a hover card waits for its read.
           <span role="status">Loading message…</span>
         )}
-      </a>
+      </div>
       {unavailable && (
         <span role="status">This Buzz link couldn’t be opened here.</span>
       )}
