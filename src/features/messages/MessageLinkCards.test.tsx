@@ -226,6 +226,41 @@ it("shows a card's last read message at once when it remounts", () => {
   expect(screen.queryByText("Loading message…")).toBeNull();
 });
 
+it("fills the cards about to be seen from one read before their own reads answer", async () => {
+  const { session } = fakeSession({}, { pending: true });
+  const read = vi.fn(async (filters: readonly { ids?: readonly string[] }[]) =>
+    (filters[0]?.ids ?? []).map((messageId) => ({
+      id: messageId,
+      kind: 9,
+      pubkey: "b".repeat(64),
+      created_at: 1,
+      content: `prefetched ${messageId.slice(-2)} ${link(20)}`,
+      tags: [["h", "general"]],
+    })),
+  );
+  Object.assign(session, { read });
+  render(
+    <MessageLinkCards
+      urls={[11, 12, 13, 14].map(link)}
+      session={session}
+      scope="community"
+      onOpenLink={() => true}
+      renderMessage={markdown()}
+    />,
+  );
+  await screen.findByText(/prefetched ad/);
+  expect(cards().map((card) => card.textContent)).toEqual([
+    expect.stringContaining("prefetched ab"),
+    expect.stringContaining("prefetched ac"),
+    expect.stringContaining("prefetched ad"),
+  ]);
+  // One read for the shown cards; the folded card and the linked messages'
+  // own links wait.
+  expect(read).toHaveBeenCalledTimes(1);
+  expect(read.mock.calls[0]?.[0][0]?.ids).toEqual([11, 12, 13].map(id));
+  expect(screen.queryByText("Loading message…")).toBeNull();
+});
+
 it("collapses a long linked message behind a button that doesn't open the card", () => {
   vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(900);
   const { session } = fakeSession({ [id(1)]: "A long message" });

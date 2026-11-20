@@ -3,6 +3,7 @@ import {
   useLayoutEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type MouseEvent,
   type ReactNode,
 } from "react";
@@ -21,6 +22,13 @@ import styles from "./LinkPreviews.module.css";
 import { MessageCard } from "./MessageCard";
 import { messageViewKey } from "./view-key";
 import { FOLD_AFTER } from "./LinkPreviews";
+import {
+  cachedLinkedMessage,
+  linkedMessageKey,
+  prefetchLinkedMessages,
+  rememberLinkedMessage,
+  subscribeLinkedMessages,
+} from "./linked-messages";
 /** Live readers all inline cards may hold at once, out of the session's 64,
  * so a channel full of message links never stops a thread from opening. */
 export const CARD_READERS = 16;
@@ -61,18 +69,6 @@ function readers(session: RelaySession) {
   return owner;
 }
 
-/** Linked messages each session last read, so a card that remounts, as every
- * row does on a channel switch, shows its message at once while it reads
- * again. Only the newest `CACHED_MESSAGES` stay. */
-export const CACHED_MESSAGES = 500;
-const seenMessages = new WeakMap<RelaySession, Map<string, ChannelMessage>>();
-
-function messageCache(session: RelaySession) {
-  const cache = seenMessages.get(session) ?? new Map<string, ChannelMessage>();
-  seenMessages.set(session, cache);
-  return cache;
-}
-
 /** Cards below a message for the Buzz messages it links to, framed as a
  * forward is, over the message as its conversation renders it. A card
  * opens its link as clicking the link does. Past `FOLD_AFTER`, the rest fold
@@ -102,9 +98,16 @@ export function MessageLinkCards({
     seen.add(key);
     return [{ url, channelId: link.channelId, messageId: link.messageId }];
   });
-  if (!cards.length) return null;
   const shown = open ? cards : cards.slice(0, FOLD_AFTER);
   const hidden = cards.length - shown.length;
+  // The cards about to be seen read their messages together, ahead of each
+  // card's own read, which then only follows edits and deletions.
+  const wanted = shown.map((card) => card.url).join(" ");
+  useLayoutEffect(() => {
+    if (wanted)
+      prefetchLinkedMessages(session, wanted.split(" "), "foreground");
+  }, [session, wanted]);
+  if (!cards.length) return null;
   return (
     <div className={styles.previews} data-message-link-cards>
       {shown.map((card) => (
@@ -184,19 +187,19 @@ function MessageLinkCard({
     () => setUnavailable(!onOpenLink(url)),
     [onOpenLink, url],
   );
-  const key = `${channelId}:${messageId}`;
-  const [cached] = useState(() => messageCache(session).get(key));
+  const key = linkedMessageKey(channelId, messageId);
+  // A prefetch, or an earlier mount's read, may already hold the message.
+  const cached = useSyncExternalStore(
+    useCallback(
+      (listener: () => void) => subscribeLinkedMessages(session, listener),
+      [session],
+    ),
+    () => cachedLinkedMessage(session, key),
+    () => cachedLinkedMessage(session, key),
+  );
   const remember = useCallback(
-    (message: ChannelMessage | undefined) => {
-      const cache = messageCache(session);
-      cache.delete(key);
-      if (!message) return;
-      cache.set(key, message);
-      for (const oldest of cache.keys()) {
-        if (cache.size <= CACHED_MESSAGES) break;
-        cache.delete(oldest);
-      }
-    },
+    (message: ChannelMessage | undefined) =>
+      rememberLinkedMessage(session, key, message),
     [session, key],
   );
   const inline = useMemo<InlineMessageCard>(
