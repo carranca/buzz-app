@@ -12,6 +12,7 @@ import {
   LinkedMessage,
   type InlineMessageCard,
 } from "../conversation/BuzzLinkPreview";
+import { useChannelReference } from "../conversation/channel-reference";
 import { parseBuzzLink } from "../navigation/buzz-links";
 import type { ChannelMessage } from "../relay/contracts";
 import { projectMarkdownAttachments } from "../relay/message-content";
@@ -165,6 +166,10 @@ function MessageLinkCard({
   onOpenLink(url: string): boolean;
   renderMessage(message: ChannelMessage): ReactNode;
 }) {
+  // A card into a channel the reader can't see explains why and opens
+  // nothing, as its link does.
+  const withheld =
+    useChannelReference(session.channels, channelId).state === "withheld";
   const [reading, setReading] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
   // Before paint, so a free reader never shows the row without its card.
@@ -231,14 +236,14 @@ function MessageLinkCard({
   return (
     <>
       <MessageCard
-        opens
+        opens={!withheld}
         aria-label="Linked message"
         data-message-link-card=""
         onClick={(event) => {
-          if (opensCard(event)) openCard();
+          if (!withheld && opensCard(event)) openCard();
         }}
         onAuxClick={(event) => {
-          if (event.button !== 1 || !opensCard(event)) return;
+          if (withheld || event.button !== 1 || !opensCard(event)) return;
           event.preventDefault();
           openCard();
         }}

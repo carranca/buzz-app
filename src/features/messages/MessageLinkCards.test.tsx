@@ -244,6 +244,30 @@ it("collapses a long linked message behind a button that doesn't open the card",
   expect(onOpenLink).not.toHaveBeenCalled();
 });
 
+it("opens nothing from a card into a channel the reader can't see", () => {
+  const { session, thread } = fakeSession();
+  Object.assign(session.channels, {
+    describe: () => ({ state: "withheld" }),
+    refer: () => () => {},
+  });
+  const onOpenLink = vi.fn(() => true);
+  render(
+    <MessageLinkCards
+      urls={[link(1)]}
+      session={session}
+      scope="community"
+      onOpenLink={onOpenLink}
+      renderMessage={markdown(onOpenLink)}
+    />,
+  );
+  const [card] = cards();
+  expect(card?.textContent).toContain("Private channel");
+  expect(card?.textContent).not.toContain("Open link");
+  fireEvent.click(card as HTMLElement);
+  expect(onOpenLink).not.toHaveBeenCalled();
+  expect(thread).not.toHaveBeenCalled();
+});
+
 it(`folds cards past ${FOLD_AFTER} behind one button`, () => {
   const { session } = fakeSession();
   render(
