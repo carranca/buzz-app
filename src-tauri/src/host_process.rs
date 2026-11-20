@@ -701,12 +701,14 @@ fn set_environment(
     Ok(())
 }
 
-/// The Anthropic API key in an agent's list, if it has one.
+/// The Anthropic API key in an agent's lists, if they set one: the agent's
+/// own, which follows the device's, wins.
 fn agent_key(
     agent_env: &[(std::ffi::OsString, std::ffi::OsString)],
 ) -> Option<&(std::ffi::OsString, std::ffi::OsString)> {
     agent_env
         .iter()
+        .rev()
         .find(|(name, _)| name == crate::claude_key::ENV)
 }
 
