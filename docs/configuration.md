@@ -159,6 +159,15 @@ A bundled plugin can replace the setup per launch with
 `ctx.agents.recommend(source)`, for example per team. Buzz waits up to five
 seconds for it, then falls back to `BUZZ_RECOMMENDED_AGENT`, so set both.
 
+A bundled plugin can also add **model routes**, such as "Auto Balanced", to the
+Claude Code and Codex Model menus with `ctx.agents.registerModelRouter(router)`.
+An agent on a route saves `route:<id>` as its model. Before each turn it starts
+while idle in a conversation, Buzz asks `router.select` for one of the
+harness's models and a thinking level. A turn that steers a running one keeps
+its pick, and a failure or no answer within 30 seconds uses the route's
+fallback. The router can also choose the route new agents and Automatic agents
+use. See `src/features/agents/model-routes.ts`.
+
 ## Federated identity build input
 
 A build trusts a compiled list of sign-in servers. Each community is matched by

@@ -127,6 +127,11 @@ if that desktop app is up and running.
   accounts or permissions.
 - **Sessions.** By default an agent starts a fresh conversation for each
   thread. Its settings can make it one per channel or one per community.
+- **Auto models.** Some builds add choices such as **Auto Balanced** to the
+  Model menu of Claude Code and Codex agents. Before each new turn, the build
+  picks a model and thinking level for that message, and the turn's activity
+  says which and why. A message sent while the agent is working keeps its
+  model, and a model chosen beside Send still wins.
 - **While it works**, the agent shows typing dots, and you can stop it. If it
   can't finish, it says why and offers **Retry**.
 - **Your default agent** (your Bestie) answers new chats and `ask:` searches.

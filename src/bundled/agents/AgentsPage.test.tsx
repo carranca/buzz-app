@@ -492,6 +492,7 @@ function setup(
     controlAttention: () => {},
     recommend: () => {},
     gatewayHarnesses: () => {},
+    registerModelRouter: () => {},
     registerSessionRouter: () => {},
     registerExecution: () => {},
     bindExecution: async () => {},
