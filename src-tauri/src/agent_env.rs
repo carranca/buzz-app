@@ -493,6 +493,18 @@ impl AgentEnvs {
             None => self.list(DEVICE).status().await,
         }
     }
+    /// A new main page has stopped every agent's processes, so none runs a
+    /// list from before its last save. The stored lists stay.
+    pub(crate) fn page_load(&self) {
+        for list in self
+            .lists
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .values()
+        {
+            list.saved.store(false, Ordering::Relaxed);
+        }
+    }
     /// Saves the device list.
     pub(crate) async fn set_device(&self, rows: Vec<Row>) -> Result<(), String> {
         let _turn = self.turn.lock().await;

@@ -14,7 +14,7 @@ import { useAgentSaveState } from "../../features/agents/AgentSaveButton";
 /** A row being edited. A saved row's value stays native: an empty `value`
  * keeps it, anything typed replaces it. */
 type Row = { key: number; name: string; value: string; saved: boolean };
-type Status = { names: string[] };
+type Status = { names: string[]; saved?: boolean };
 
 /** Variables one local agent starts with, or without `agent` every local
  * agent on this device, held natively in the OS credential store. Values are
@@ -27,6 +27,10 @@ export function AgentEnvironment({
   /** Stops the agent's processes, so its next turn starts with the list. */
   restartAgent?: () => Promise<void>;
 }) {
+  // Every local agent restarts with the page, which ends its processes.
+  const restartAll = !agent;
+  const run = restartAgent ?? (async () => window.location.reload());
+  const [saved, setSaved] = useState(false);
   const [rows, setRows] = useState<Row[] | undefined>();
   const [restarting, setRestarting] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -47,6 +51,8 @@ export function AgentEnvironment({
         saved: true,
       })),
     );
+    // Saved since this page loaded, so running agents may have the old list.
+    setSaved(!!status.saved);
     setDirty(false);
   }, []);
   const fetch = useCallback(() => {
@@ -181,13 +187,15 @@ export function AgentEnvironment({
             {error}
           </p>
         )}
-        {restartAgent && (
+        {(restartAgent || restartAll) && (
           <PreferenceRow
-            title="Restart agent"
+            title={restartAll ? "Restart agents" : "Restart agent"}
             subtitle={
               dirty
                 ? "Save your changes first."
-                : "Processes already running keep the variables they started with."
+                : restartAll && saved
+                  ? "Saved. Agents already running keep the old list until they restart."
+                  : "Processes already running keep the variables they started with."
             }
             trailing={
               <Button
@@ -199,16 +207,20 @@ export function AgentEnvironment({
                 focusableWhenDisabled
                 onClick={() => setConfirm(true)}
               >
-                Restart agent
+                {restartAll ? "Restart agents" : "Restart agent"}
               </Button>
             }
           />
         )}
       </SettingsGroup>
-      {confirm && restartAgent && (
+      {confirm && (restartAgent || restartAll) && (
         <AlertDialog
-          title="Restart this agent?"
-          description="Its processes stop, and its next message starts them with the saved environment variables. Other agents keep running."
+          title={restartAll ? "Restart agents?" : "Restart this agent?"}
+          description={
+            restartAll
+              ? "Buzz reloads, which ends calls and turns in progress. Each agent's next message starts it with the saved environment variables."
+              : "Its processes stop, and its next message starts them with the saved environment variables. Other agents keep running."
+          }
           finalFocus={restart}
           onClose={() => setConfirm(false)}
           actions={
@@ -220,7 +232,7 @@ export function AgentEnvironment({
                   setConfirm(false);
                   setRestarting(true);
                   setError(undefined);
-                  restartAgent()
+                  run()
                     .catch((reason: unknown) =>
                       setError(
                         reason instanceof Error

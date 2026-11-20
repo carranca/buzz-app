@@ -490,3 +490,22 @@ async fn every_agent_gets_the_device_list_and_its_own_wins() {
     assert_eq!(agent_given(&envs, ADA).await.len(), 2);
     assert!(stores.lock().unwrap().contains_key("default"));
 }
+
+#[tokio::test]
+async fn a_page_load_clears_saved_and_keeps_the_lists() {
+    let (envs, stores) = envs();
+    let pubkey = "a".repeat(64);
+    envs.set_device(vec![set("FOO", "1")]).await.unwrap();
+    envs.set(&pubkey, vec![set("BAR", "2")], || Ok(true))
+        .await
+        .unwrap();
+    assert!(envs.status(None).await.unwrap().saved);
+    assert!(envs.status(Some(&pubkey)).await.unwrap().saved);
+    envs.page_load();
+    let device = envs.status(None).await.unwrap();
+    let own = envs.status(Some(&pubkey)).await.unwrap();
+    assert!(!device.saved && !own.saved);
+    assert_eq!(device.names, ["FOO"]);
+    assert_eq!(own.names, ["BAR"]);
+    assert_eq!(stores.lock().unwrap().len(), 2);
+}

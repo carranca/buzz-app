@@ -129,7 +129,11 @@ if that desktop app is up and running.
   harness's own variables win over both, except that a saved
   `ANTHROPIC_API_KEY` wins over the shared Claude key. The same names are refused as in an
   agent's own list. A save applies to agent processes started afterward;
-  agents already running keep the old list until **Restart Buzz**.
+  agents already running keep the old list until **Restart agents**, which
+  reloads Buzz so every local agent's next message starts it with the saved
+  list. It asks first, since the reload ends calls and turns in progress, and
+  stays off while the list has unsaved edits. On Windows, where names ignore
+  case, the Anthropic key is saved only as `ANTHROPIC_API_KEY`.
 - **An agent's page** has its identity and instructions, settings, **Memory**,
   **Activity** (its past sessions) and plugin tabs such as **Attention**.
 - **Settings → Agent details → Environment variables** sets variables one

@@ -397,3 +397,32 @@ it("edits the device list when no agent is named", async () => {
     screen.getByText("Variables every local agent on this device starts with."),
   ).toBeInTheDocument();
 });
+
+it("restarting every agent asks first, then reloads Buzz", async () => {
+  const user = userEvent.setup();
+  const reload = vi.fn();
+  vi.stubGlobal("location", { ...window.location, reload });
+  try {
+    render(<AgentEnvironment />);
+    const restart = await screen.findByRole("button", {
+      name: "Restart agents",
+    });
+    await user.type(screen.getByLabelText("Value of SAVED_KEY"), "new");
+    expect(restart).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText("Save your changes first.")).toBeInTheDocument();
+    native.invoke.mockImplementation(async (command) =>
+      command === "agent_env_status" ? { names, saved: true } : undefined,
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      await screen.findByText(/keep the old list until they restart/),
+    ).toBeInTheDocument();
+    await user.click(restart);
+    expect(screen.getByText(/ends calls and turns in progress/)).toBeVisible();
+    expect(reload).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Restart" }));
+    expect(reload).toHaveBeenCalledOnce();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
