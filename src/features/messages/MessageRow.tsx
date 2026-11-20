@@ -306,8 +306,17 @@ function MessageRowContent({
     row.channelId,
     row.threadRootId ?? row.id,
   );
+  // A Send to channel copy starts no thread of its own: until someone replies
+  // to it, it opens the thread it was sent from, as a broadcast reply does.
+  const sentFromRootId =
+    !row.threadRootId && row.replyCount === 0
+      ? row.sentFromThread?.rootId
+      : undefined;
+  const threadRootId = row.threadRootId ?? sentFromRootId;
+  const openThreadRootId = threadRootId ?? row.id;
+  const openThreadMessageId = sentFromRootId ?? row.id;
   const { agents: threadAgents, waiting: threadWaiting } = useThreadAgents(
-    onOpenThread && (row.replyCount > 0 || (startsThreads && !row.threadRootId))
+    onOpenThread && (row.replyCount > 0 || (startsThreads && !threadRootId))
       ? session
       : undefined,
     row.channelId,
@@ -317,7 +326,7 @@ function MessageRowContent({
   );
   const rootId = row.threadRootId ?? row.id;
   const threadDraft = useThreadDraft(
-    onOpenThread && (row.replyCount > 0 || (startsThreads && !row.threadRootId))
+    onOpenThread && (row.replyCount > 0 || (startsThreads && !threadRootId))
       ? session
       : undefined,
     row.channelId,
@@ -328,7 +337,7 @@ function MessageRowContent({
     [onOpenLink, rootId],
   );
   const springLoadedThread = useSpringLoaded(
-    () => onOpenThread?.(row.id, rootId),
+    () => onOpenThread?.(openThreadMessageId, openThreadRootId),
     threadOpen,
   );
   const channels = session?.channels;
@@ -1173,12 +1182,7 @@ function MessageRowContent({
       onReply={
         (onReply ? () => onReply(row.id) : undefined) ??
         (onOpenThread && startsThreads
-          ? () =>
-              onOpenThread(
-                row.threadRootId ?? row.id,
-                row.threadRootId ?? row.id,
-                "reply",
-              )
+          ? () => onOpenThread(openThreadRootId, openThreadRootId, "reply")
           : undefined)
       }
       replyDisabled={
@@ -1362,7 +1366,7 @@ function MessageRowContent({
             }
             onClick={(event) => {
               event.currentTarget.focus();
-              onOpenThread(row.id, row.threadRootId ?? row.id);
+              onOpenThread(openThreadMessageId, openThreadRootId);
             }}
             {...springLoadedThread}
           >
@@ -1766,7 +1770,7 @@ function MessageRowContent({
               openThread={
                 summaryThread
                   ? () => {
-                      summaryThread(row.id, row.threadRootId ?? row.id);
+                      summaryThread(openThreadMessageId, openThreadRootId);
                       return true;
                     }
                   : undefined
@@ -1798,7 +1802,7 @@ function MessageRowContent({
           openThread={
             summaryThread
               ? () => {
-                  summaryThread(row.id, row.threadRootId ?? row.id);
+                  summaryThread(openThreadMessageId, openThreadRootId);
                   return true;
                 }
               : undefined

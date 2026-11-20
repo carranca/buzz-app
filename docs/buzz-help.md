@@ -94,7 +94,9 @@ if that desktop app is up and running.
   Mentioning a team mentions each member.
 - **Messages.** Hover or right-click a message to react, **Reply**, copy a link,
   forward it, or start a chat about it. On an agent's reply, **View activity**
-  shows what it did.
+  shows what it did. **Reply** on a reply copied to the channel with **Send to
+  channel** continues the thread it came from, unless the copy has replies of
+  its own.
 - **Composer.** **#** links a channel. On desktop, **!** gives your agents a
   folder and **/** a skill. Attach files by pasting or dragging them in.
 - **Chats** are **Ongoing** or **Temporary**, which archive after a while
