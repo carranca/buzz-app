@@ -394,6 +394,6 @@ it("edits the device list when no agent is named", async () => {
     rows: [{ name: "SAVED_KEY", value: "new" }],
   });
   expect(
-    screen.getByText(/Every local agent on this device/),
+    screen.getByText("Variables every local agent on this device starts with."),
   ).toBeInTheDocument();
 });

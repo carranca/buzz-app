@@ -103,8 +103,8 @@ export function AgentEnvironment({
       <InlineHeader title="Environment variables" />
       <p className="m-0 mb-2 text-body-sm text-subtle">
         {agent
-          ? "This agent starts with these, after the ones every local agent on this device gets, so its own win. A harness’s own settings win over both, except that a saved ANTHROPIC_API_KEY wins over the shared Claude key. Models, providers and endpoints are set in its harness settings, not here."
-          : "Every local agent on this device starts with these, and an agent’s own list wins over them. Protected and hosted agents don’t get them, and a harness’s own settings win, except that a saved ANTHROPIC_API_KEY wins over the shared Claude key. Models, providers and endpoints are set above, not here."}
+          ? "Variables this agent starts with. These override the ones set for all agents in Settings."
+          : "Variables every local agent on this device starts with."}
       </p>
       <SettingsGroup layout="form">
         {rows.map((row) => (
