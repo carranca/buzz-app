@@ -18560,6 +18560,20 @@ describe("submit target", () => {
     expect([...h.drafts.keys()]).toEqual(["b"]);
   });
 
+  it("restores a key's draft with the caret at its end", async () => {
+    const h = targetFixture();
+    h.retarget({ submitTarget: h.target() });
+    fillComposer(h.input(), "For a");
+    h.retarget({ submitTarget: h.target({ key: "b" }) });
+    h.retarget({ submitTarget: h.target() });
+    expect(h.input()).toHaveValue("For a");
+    expect(h.input().selectionStart).toBe(5);
+    expect(h.input().selectionEnd).toBe(5);
+    h.input().focus();
+    await h.user.keyboard("!");
+    expect(h.input()).toHaveValue("For a!");
+  });
+
   it("waits disabled for the answer and keeps the draft with the rejection's message", async () => {
     const h = targetFixture();
     let reject!: (reason: Error) => void;

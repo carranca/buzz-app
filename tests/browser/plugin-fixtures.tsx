@@ -464,6 +464,7 @@ export const fixturePlugins: readonly BundledPlugin[] = [
             signal: AbortSignal;
           }>();
           const [answering, setAnswering] = useState(false);
+          const [card, setCard] = useState(1);
           const [answered, setAnswered] = useState<string>();
           const connection = useSyncExternalStore(
             relay.subscribe,
@@ -508,6 +509,19 @@ export const fixturePlugins: readonly BundledPlugin[] = [
                   Answer in composer
                 </button>
               )}
+              {answering && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setCard((n) => Math.max(1, n - 1))}
+                  >
+                    Previous card
+                  </button>
+                  <button type="button" onClick={() => setCard((n) => n + 1)}>
+                    Next card
+                  </button>
+                </>
+              )}
               {answered !== undefined && <output>Answered: {answered}</output>}
               <div style={{ flex: 1, minHeight: 0 }}>
                 <Workspace
@@ -519,7 +533,7 @@ export const fixturePlugins: readonly BundledPlugin[] = [
                   submitTarget={
                     answering
                       ? {
-                          key: "decision",
+                          key: `decision-${card}`,
                           label: "Answering the fixture decision",
                           placeholder: "Answer the decision",
                           canSubmit: true,

@@ -2052,6 +2052,8 @@ function Composer({
       valueRef.current = next;
       updateDraft(next);
       input.current.reset(next);
+      // reset() leaves the caret at the start; a restored draft continues at its end.
+      input.current.setSelectionRange(next.text.length, next.text.length);
       reportTargetDraft(next);
       const pending = drafts && pendingAnswers.get(drafts)?.get(key);
       if (pending && !answerPending.current) awaitAnswer(key, pending);

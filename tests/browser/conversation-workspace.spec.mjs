@@ -228,3 +228,35 @@ test("a page's submit target takes the composer's Enter without sending", async 
     .click();
   await expect(composer).toHaveText("Channel draft");
 });
+
+// Returning to a card restores its draft; focus, by click or by the host's
+// handoff, must continue after the restored text rather than before it.
+test("a restored target draft takes focus with its caret at the end", async ({
+  page,
+  app,
+}) => {
+  await open(page, app);
+  await select(page, { channelId: "alpha" });
+  await page.getByRole("button", { name: "Answer in composer" }).click();
+  const composer = page.getByRole("textbox", {
+    name: "Message #Alpha",
+    exact: true,
+  });
+  await composer.click();
+  await page.keyboard.type("Beta");
+  const restore = async () => {
+    await page.getByRole("button", { name: "Next card" }).click();
+    await expect(composer).toHaveText("");
+    await page.getByRole("button", { name: "Previous card" }).click();
+    await expect(composer).toHaveText(/^Beta/);
+  };
+  await restore();
+  await composer.click();
+  await expect(composer).toBeFocused();
+  await page.keyboard.type("!");
+  await expect(composer).toHaveText("Beta!");
+  await restore();
+  await composer.focus();
+  await page.keyboard.type("?");
+  await expect(composer).toHaveText("Beta!?");
+});
