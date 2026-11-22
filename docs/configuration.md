@@ -31,7 +31,7 @@ token or other secret in one**. Open-source builds leave them all unset.
 | `BUZZ_BUILDERLAB_APPS_DOMAIN` | The Apps cookie domain for in-app SSO, for Builderlab deployments other than the public one. Empty disables SSO. |
 | `BUZZ_BUILDERLAB_APPS_CONTROL_PLANE` | The Apps control plane origin, for deployments the built-in table doesn't list. |
 | `BUZZ_BUILD_MANAGED_PLUGINS_URL` | An `https` URL of a version 1 [managed plugin policy](managed-plugins.md#packaged-policy), used when no `managed-plugins.json` exists. |
-| `BUZZ_BUILD_RELAY_POLICY` | A [relay trust policy](#relay-trust-policy): the pinned community and the additional relays allowed. Process environment only. |
+| `BUZZ_BUILD_RELAY_POLICY` | A [relay trust policy](#relay-trust-policy): the pinned community and the additional relays allowed. Vite and Cargo read it only from the build command's environment. |
 | `BUZZ_BUILD_REPOSITORY_ACCESS` | Default [repository access rules](repository-access.md#default-rules). |
 | `BUZZ_DATABRICKS_HOST` | An `https://` Databricks workspace URL passed to every bundled goose as `DATABRICKS_HOST`. Only the host; model and sign-in stay goose's. |
 | `BUZZ_MOBILE_APP_IOS_URL`, `BUZZ_MOBILE_APP_ANDROID_URL` | Store links shown with QR codes on the mobile Settings card, for people whose Builderlab account holds this device's backed-up key. |
@@ -55,13 +55,18 @@ export BUZZ_BUILD_RELAY_POLICY='{"pinned":"relay.example.com","allowlist":["othe
 bin/pnpm tauri build
 ```
 
-This input is **process environment only**. Both Vite and Cargo validate it at
-build time and embed it into their artifacts. Supply the same input to both
-stages; `tauri build` passes its environment to both. Vite development reads it
-when the server starts; native development needs a rebuild too. `.env` files,
-`VITE_` variables, saved preferences and the launched app's environment do not
-override it. Rebuild both artifacts to change a packaged policy. No relay policy
-or relay addresses are supplied by OSS defaults.
+Vite and Cargo read this input **only from the environment of the build
+command**, never from a `.env` file. `just desktop` and `just desktop-bundle`
+copy a `.env.local` value into that environment (see
+[How values are read](#how-values-are-read)), and a value already in the
+environment wins. A direct `pnpm tauri build`, Vite or `cargo` run reads no
+`.env` file for it. Both Vite and Cargo validate the input at build time and
+embed it into their artifacts. Supply the same input to both stages;
+`tauri build` passes its environment to both. Vite development reads it when
+the server starts; native development needs a rebuild too. `VITE_` variables,
+saved preferences and the launched app's environment do not override it.
+Rebuild both artifacts to change a packaged policy. No relay policy or relay
+addresses are supplied by OSS defaults.
 
 - Absent: existing unrestricted community behavior.
 - Present: a JSON object with exactly `pinned` (a host string) and `allowlist`
