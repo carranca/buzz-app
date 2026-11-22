@@ -8,7 +8,7 @@ import english from "@emoji-mart/data/i18n/en.json";
 import { Data, FrequentlyUsed, Picker, SearchIndex } from "emoji-mart";
 import type { CustomEmoji } from "../../features/relay/emoji";
 import { rankShortcodes } from "./emoji-search";
-import { customEmojiId, seedEmojiUsage } from "./emoji-usage";
+import { addEmojiUsage, customEmojiId, frequentEmoji } from "./emoji-usage";
 import { PREVIEW_ACTION_SLOT } from "./add-emoji";
 import {
   SKIN_TONE_SLOT,
@@ -20,6 +20,13 @@ import {
 import { rootFontSize, spaciousGrid } from "./picker-layout";
 
 const martSearch = SearchIndex.search;
+// Buzz owns usage history. Mart caches its copy per window, overwriting other
+// windows' choices, and counts a pick before the tone prompt confirms it.
+Object.assign(FrequentlyUsed, {
+  add() {},
+  get: (props: { maxFrequentRows: number; perLine: number }) =>
+    frequentEmoji(props, FrequentlyUsed.DEFAULTS, (id) => !!Data?.emojis[id]),
+});
 const resolvedTheme = (value: unknown): "light" | "dark" =>
   value === "dark" ? "dark" : "light";
 
@@ -130,8 +137,6 @@ export function mountEmojiMart({
       },
     ];
   });
-  // Also restores the default row if storage contains a poisoned empty map.
-  seedEmojiUsage(FrequentlyUsed.DEFAULTS, perLine);
   const picker = new Picker({
     data,
     custom: emojis.length
@@ -168,12 +173,17 @@ export function mountEmojiMart({
     ),
     onEmojiSelect: (emoji: { native?: string; id?: string }) => {
       if (disposed) return;
+      if (!emoji.id) return;
       if (emoji.native) {
-        if (!promptSkinTone(emoji.id)) select(emoji.native);
+        if (promptSkinTone(emoji.id)) return;
+        addEmojiUsage(emoji.id);
+        select(emoji.native);
         return;
       }
-      const custom = values.get(emoji.id ?? "");
-      if (custom) select(custom.literal, custom.shortcode);
+      const custom = values.get(emoji.id);
+      if (!custom) return;
+      addEmojiUsage(emoji.id);
+      select(custom.literal, custom.shortcode);
     },
   }) as unknown as HTMLElement;
   // The documented web-component attribute updates in place: do not recreate the
@@ -650,6 +660,7 @@ ${[1, 2, 3, 4, 5, 6].map((tone) => `    .menu .skin-tone-${tone}::before { conte
     const tone = chosenTone;
     const native = tone && Data?.emojis[id]?.skins[tone - 1]?.native;
     if (!native || disposed) return false;
+    addEmojiUsage(id);
     select(native);
     return true;
   };
